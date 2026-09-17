@@ -1,7 +1,3 @@
-
-
-https://github.com/user-attachments/assets/d102d74c-db92-4697-805a-915f2dbbd0e9
-
 # caelestia-mods
 
 Custom modifications for the [Caelestia](https://github.com/caelestia-dots/shell) Quickshell desktop shell on Hyprland.
@@ -38,6 +34,16 @@ password; `sudo` may lock out, `su` is used instead). Restart the shell after:
 ```bash
 pkill -f 'qs.*caelestia'; sleep 2; qs -c caelestia -d
 ```
+
+## Undo
+
+```bash
+bash scripts/undo.sh
+```
+
+Removes every mod file from `/etc/xdg/quickshell/caelestia/` and restores the
+two patched base files (`Content.qml`, `ServiceLoader.qml`). Restart the shell
+after, same as above.
 
 ## Notes
 
