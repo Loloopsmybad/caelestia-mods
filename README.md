@@ -51,9 +51,15 @@ pkill -f 'qs.*caelestia'; sleep 2; qs -c caelestia -d
 bash scripts/undo.sh
 ```
 
-Removes every mod file from `/etc/xdg/quickshell/caelestia/` and restores the
-two patched base files (`Content.qml`, `ServiceLoader.qml`). Restart the shell
-after, same as above.
+Detects what this repo has installed (GitHub dashboard mod, themes, Obsidian
+hook) and interactively asks which to remove. For the GitHub mod it deletes the
+mod files and restores the two patched base files (`Content.qml`,
+`ServiceLoader.qml`); themes are pruned from `<site-packages>/caelestia/data/
+schemes/`; the Obsidian hook reverses `apply.patch` on `theme.py` (skipped with
+a warning if `theme.py` no longer matches), drops `enableObsidian` from the
+caelestia config, and removes the installed theme from each Obsidian vault.
+Select numbers, `a` for all, Enter to cancel. Restart the shell after the GitHub
+item, same as above.
 
 ## Themes
 
