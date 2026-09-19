@@ -1,0 +1,251 @@
+--- a/caelestia/utils/theme.py
++++ b/caelestia/utils/theme.py
+@@ -16,11 +16,12 @@
+     config_dir,
+     data_dir,
+     get_config,
++    scheme_data_dir,
+     templates_dir,
+     theme_dir,
+     user_templates_dir,
+ )
+-from caelestia.utils.scheme import get_scheme
++from caelestia.utils.scheme import get_scheme, read_colours_from_file
+ 
+ 
+ def gen_conf(colours: dict[str, str]) -> str:
+@@ -394,6 +395,225 @@
+     subprocess.run(["killall", "-USR2", "cava"], stderr=subprocess.DEVNULL)
+ 
+ 
++def _hex_to_hsl(hex_colour: str) -> tuple[int, int, int]:
++    r = int(hex_colour[0:2], 16) / 255
++    g = int(hex_colour[2:4], 16) / 255
++    b = int(hex_colour[4:6], 16) / 255
++    c_max, c_min = max(r, g, b), min(r, g, b)
++    delta = c_max - c_min
++    l = (c_max + c_min) / 2
++    if delta == 0:
++        h = s = 0.0
++    else:
++        s = delta / (1 - abs(2 * l - 1))
++        if c_max == r:
++            h = 60 * (((g - b) / delta) % 6)
++        elif c_max == g:
++            h = 60 * ((b - r) / delta + 2)
++        else:
++            h = 60 * ((r - g) / delta + 4)
++    return round(h % 360), round(s * 100), round(l * 100)
++
++
++def _rgba(hex_colour: str, alpha: float) -> str:
++    r = int(hex_colour[0:2], 16)
++    g = int(hex_colour[2:4], 16)
++    b = int(hex_colour[4:6], 16)
++    return f"rgba({r}, {g}, {b}, {alpha})"
++
++
++def _obsidian_css_block(mode: str, colours: dict[str, str]) -> str:
++    def c(*keys: str, fallback: str = "000000") -> str:
++        for key in keys:
++            value = colours.get(key)
++            if value and len(value) == 6:
++                return value
++        return fallback
++
++    def rgb(hex_colour: str) -> str:
++        return ", ".join(str(int(hex_colour[i : i + 2], 16)) for i in (0, 2, 4))
++
++    h, s, l = _hex_to_hsl(c("primary", fallback="7aa2f7" if mode == "dark" else "1e66f5"))
++    surface = c("surface", "background")
++    surface_low = c("surfaceContainerLow", "surfaceContainer", "surface")
++    surface_high = c("surfaceContainerHigh", "surfaceContainer", "surface")
++
++    return f"""/* Caelestia - {mode} */
++.theme-{mode} {{
++  --color-base-00: #{c("background", "surface", fallback="000000" if mode == "dark" else "ffffff")};
++  --color-base-05: #{c("surfaceContainerLowest", "surfaceContainerLow", "surface")};
++  --color-base-10: #{surface_low};
++  --color-base-20: #{c("surfaceContainer", "surfaceContainerLow", "surface")};
++  --color-base-25: #{c("surfaceContainerHigh", "surfaceContainer", "surface")};
++  --color-base-30: #{surface_high};
++  --color-base-35: #{c("surfaceContainerHighest", "surfaceContainerHigh", "surface")};
++  --color-base-40: #{c("outlineVariant", "outline", "surfaceVariant")};
++  --color-base-50: #{c("outline", "outlineVariant")};
++  --color-base-60: #{c("onSurfaceVariant", "outline")};
++  --color-base-70: #{c("onSurfaceVariant", "surfaceVariant")};
++  --color-base-100: #{c("onSurface", "onBackground")};
++
++  --accent-h: {h};
++  --accent-s: {s}%;
++  --accent-l: {l}%;
++
++  --background-primary: #{c("background", "surface")};
++  --background-primary-alt: #{surface_low};
++  --background-secondary: #{surface};
++  --background-secondary-alt: #{surface_low};
++  --background-modifier-border: #{c("outlineVariant", "outline")};
++  --background-modifier-border-hover: #{c("outline", "outlineVariant")};
++  --background-modifier-border-focus: #{c("primary")};
++  --background-modifier-error: #{c("error")};
++  --background-modifier-error-hover: #{c("error", "maroon")};
++  --background-modifier-error-rgb: {rgb(c("error"))};
++  --background-modifier-success: #{c("success")};
++  --background-modifier-success-rgb: {rgb(c("success"))};
++  --background-modifier-message: #{surface_high};
++  --background-modifier-box-shadow: rgba(0, 0, 0, 0.3);
++
++  --text-normal: #{c("onSurface", "onBackground")};
++  --text-muted: #{c("onSurfaceVariant")};
++  --text-faint: #{c("outline")};
++  --text-accent: #{c("primary")};
++  --text-accent-hover: #{c("primaryFixedDim", "primary")};
++  --text-error: #{c("error")};
++  --text-error-hover: #{c("error", "maroon")};
++  --text-highlight-bg: {_rgba(c("primaryContainer", "primary"), 0.5)};
++  --text-highlight-bg-active: {_rgba(c("primaryContainer", "primary"), 0.7)};
++  --text-selection: {_rgba(c("primaryContainer", "primary"), 0.3)};
++  --text-on-accent: #{c("onPrimary")};
++
++  --interactive-normal: #{surface_high};
++  --interactive-hover: #{c("surfaceContainerHighest", "surfaceContainerHigh", "surface")};
++  --interactive-accent: #{c("primary")};
++  --interactive-accent-hover: #{c("primaryFixedDim", "primaryDim", "primary")};
++  --interactive-success: #{c("success")};
++
++  --scrollbar-bg: {_rgba(c("background", "surface"), 0.0)};
++  --scrollbar-thumb-bg: {_rgba(c("outlineVariant"), 0.35)};
++  --scrollbar-active-thumb-bg: {_rgba(c("outline"), 0.55)};
++
++  --inline-title-color: #{c("onSurface", "onBackground")};
++  --h1-color: #{c("onSurface", "onBackground")};
++  --h2-color: #{c("onSurface", "onBackground")};
++  --h3-color: #{c("onSurfaceVariant")};
++  --h4-color: #{c("onSurfaceVariant")};
++  --h5-color: #{c("onSurfaceVariant")};
++  --h6-color: #{c("onSurfaceVariant")};
++
++  --link-color: #{c("primary")};
++  --link-color-hover: #{c("primaryFixedDim", "primary")};
++  --link-external-color: #{c("tertiary", "primary")};
++  --link-external-color-hover: #{c("tertiaryContainer", "primary")};
++  --link-unresolved-color: {_rgba(c("primary"), 0.4)};
++
++  --code-background: #{surface_low};
++  --code-normal: #{c("onSurface", "onBackground")};
++  --code-comment: #{c("subtext0", "outline")};
++  --code-keyword: #{c("mauve", "pink", "primary")};
++  --code-operator: #{c("blue", "sky", "onSurfaceVariant")};
++  --code-string: #{c("green", "onSurfaceVariant")};
++  --code-number: #{c("peach", "onSurfaceVariant")};
++  --code-property: #{c("teal", "sky", "onSurfaceVariant")};
++
++  --graph-node: #{c("onSurfaceVariant")};
++  --graph-node-focused: #{c("primary")};
++  --graph-node-attachment: #{c("tertiary")};
++  --graph-node-unresolved: {_rgba(c("outline"), 0.5)};
++  --graph-node-tag: #{c("secondary")};
++  --graph-line: #{c("outlineVariant")};
++
++  --titlebar-background: #{c("surfaceDim", "background", "surface")};
++  --titlebar-background-focused: #{c("background", "surface")};
++
++  --nav-item-color: #{c("onSurfaceVariant")};
++  --nav-item-color-hover: #{c("onSurface")};
++  --nav-item-color-active: #{c("onSurface")};
++  --nav-item-color-selected: #{c("onPrimary")};
++  --nav-item-background-hover: {_rgba(c("onSurface"), 0.08)};
++  --nav-item-background-active: {_rgba(c("secondaryContainer", "primaryContainer"), 0.4)};
++  --nav-item-background-selected: {_rgba(c("secondaryContainer", "primaryContainer"), 0.5)};
++
++  --tag-color: #{c("primary")};
++  --tag-background: {_rgba(c("primaryContainer", "primary"), 0.25)};
++  --tag-background-hover: {_rgba(c("primary"), 0.3)};
++
++  --highlight-mix-blend-mode: lighten;
++}}
++"""
++
++
++@log_exception
++def apply_obsidian(colours: dict[str, str], mode: str) -> None:
++    scheme = get_scheme()
++    other_mode = "light" if mode == "dark" else "dark"
++
++    other: dict[str, str] | None = None
++    if scheme.name != "dynamic":
++        path = (scheme_data_dir / scheme.name / scheme.flavour / other_mode).with_suffix(".txt")
++        if path.is_file():
++            try:
++                other = read_colours_from_file(path)
++            except OSError:
++                other = None
++
++    if other is None:
++        from caelestia.utils.material.generator import gen_scheme, hex_to_hct
++
++        class _Mode:
++            pass
++
++        other_scheme = _Mode()
++        other_scheme.mode = other_mode
++        other_scheme.variant = scheme.variant
++        other_scheme.flavour = scheme.flavour
++        try:
++            other = gen_scheme(other_scheme, hex_to_hct(colours["primary"]))
++        except KeyError:
++            other = colours
++
++    dark = colours if mode == "dark" else other
++    light = colours if mode == "light" else other
++    css = "/* Generated by caelestia. Do not edit manually. */\n" + "\n".join(
++        (_obsidian_css_block("dark", dark), _obsidian_css_block("light", light))
++    )
++
++    obsidian_config = Path("~/.config/obsidian/obsidian.json").expanduser()
++    try:
++        vaults = json.loads(obsidian_config.read_text()).get("vaults", {})
++    except (OSError, json.JSONDecodeError):
++        vaults = {}
++
++    for meta in vaults.values():
++        vault = Path(meta["path"]) / ".obsidian"
++        theme_dir = vault / "themes" / "Caelestia"
++        theme_dir.mkdir(parents=True, exist_ok=True)
++        atomic_write(
++            theme_dir / "manifest.json",
++            json.dumps(
++                {
++                    "name": "Caelestia",
++                    "version": "1.0.0",
++                    "minAppVersion": "1.0.0",
++                    "author": "Caelestia",
++                    "authorUrl": "https://github.com/caelestia-dots/cli",
++                }
++            ),
++        )
++        atomic_write(theme_dir / "theme.css", css)
++
++        appearance_path = vault / "appearance.json"
++        try:
++            appearance = json.loads(appearance_path.read_text())
++        except (OSError, json.JSONDecodeError):
++            appearance = {}
++        appearance["cssTheme"] = "Caelestia"
++        appearance["theme"] = "obsidian" if mode == "dark" else "moonstone"
++        appearance["accentColor"] = f"#{colours['primary']}"
++        atomic_write(appearance_path, json.dumps(appearance))
++
++
+ @log_exception
+ def apply_user_templates(colours: dict[str, str], mode: str) -> None:
+     if not user_templates_dir.is_dir():
+@@ -453,6 +673,8 @@
+                 apply_zed(colours, mode)
+             if check("enableCava"):
+                 apply_cava(colours)
++            if check("enableObsidian"):
++                apply_obsidian(colours, mode)
+             apply_user_templates(colours, mode)
+ 
+             if post_hook := cfg.get("postHook"):

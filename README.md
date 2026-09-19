@@ -4,8 +4,10 @@ Custom modifications for the [Caelestia](https://github.com/caelestia-dots/shell
 
 ## Layout
 
-Each mod under `mods/<name>/` mirrors the Caelestia file tree
-(`services/`, `modules/`) and is copied 1:1 into `/etc/xdg/quickshell/caelestia/`.
+Quickshell mods live under `mods/<name>/`, mirror the Caelestia file tree
+(`services/`, `modules/`) and are copied 1:1 into
+`/etc/xdg/quickshell/caelestia/`. CLI-side additions live at the top level:
+`themes/` (scheme data) and `obsidian/` (theme hook).
 
 ```
 mods/
@@ -20,6 +22,14 @@ mods/
             ├── ProfileHeader.qml
             ├── PinnedRepos.qml
             └── RepoCard.qml
+themes/
+└── schemes/                 # 92 scheme palette dirs (Ayu Blue, Cyberpunk, ...)
+    └── install.sh           # copy schemes into the caelestia CLI data dir
+obsidian/
+    ├── utils/theme.py       # patched theme.py with Obsidian hook
+    ├── apply.patch          # same change as a unified diff
+    ├── install.sh           # install the hook + enable via config
+    └── README.md            # usage + disabling
 ```
 
 ## Deploy
@@ -45,9 +55,55 @@ Removes every mod file from `/etc/xdg/quickshell/caelestia/` and restores the
 two patched base files (`Content.qml`, `ServiceLoader.qml`). Restart the shell
 after, same as above.
 
+## Themes
+
+92 community palettes converted to Caelestia scheme format (`.txt`, `key value`
+pairs, organized `scheme/flavour/mode.txt`), including Ayu/x, Catppuccin
+flavours, Everforest variants, Tokyo Night, Kanagawa, Aura, Cyberpunk, and
+more. The full list is what `caelestia scheme list` returns on the original
+setup.
+
+Install (copies `themes/schemes/` into `<site-packages>/caelestia/data/schemes/`):
+
+```bash
+bash themes/install.sh
+```
+
+Verify:
+
+```bash
+caelestia scheme list --names
+```
+
+### Credits
+
+The dark/light color data for these schemes was converted from the
+[Noctalia community-palettes](https://github.com/noctalia-dev/community-palettes)
+repo (per-palette JSON files → caelestia `key value` scheme files; the JSON
+contains the palette colors only, no per-palette credits). That repo has no
+license file, so the schemes' colors remain property of their upstream theme
+authors, including: Catppuccin, Tokyo Night, Everforest, Kanagawa, Rose Pine,
+Ayu, Nord, Gruvbox, Solarized, Dracula, One Dark, Flexoki, Oxocarbon, and the
+community members who contributed palettes to Noctalia's repo.
+
+## Obsidian
+
+Adds an Obsidian theme hook to `caelestia`'s `theme.py`: every `caelestia
+scheme set` writes the active scheme into each vault listed in
+`~/.config/obsidian/obsidian.json` (theme CSS, `appearance.json` mode + accent).
+
+```bash
+bash obsidian/install.sh
+```
+
+See `obsidian/README.md` for usage and how to disable.
+
 ## Notes
 
 - Files under `/etc/xdg/quickshell/caelestia/` are overwritten on
   `caelestia-shell` package updates — re-run `deploy.sh` after updating.
+- Scheme and Obsidian files in `site-packages` are overwritten on `caelestia`
+  package updates — re-run `themes/install.sh` / `obsidian/install.sh` after
+  updating.
 - Per-mod config lives in `~/.config/caelestia/shell.json` (not overwritten).
 - Change the tracked GitHub username in `mods/github/services/GitHub.qml`.
