@@ -39,6 +39,7 @@ echo "Installed mods:"
 echo "  1) GitHub dashboard mod   [ $([ "$GITHUB" = true ] && echo installed || echo not installed) ]"
 echo "  2) Themes ($THEMES_COUNT scheme dirs installed)   [ $([ "$THEMES_COUNT" -gt 0 ] && echo installed || echo not installed) ]"
 echo "  3) Obsidian theme hook    [ $([ "$OBS" = true ] && echo installed || echo not installed) ]"
+echo "  4) Hyprquickpaper         [ $(ls ~/.config/quickshell/hyprquickpaper/shell.qml 2>/dev/null && echo installed || echo not installed) ]"
 echo ""
 
 # --- prompt ---
@@ -49,14 +50,14 @@ while :; do
         exit 0
     fi
     if [ "$choice" = "a" ]; then
-        sel="1 2 3"
+        sel="1 2 3 4"
     else
         sel="$(echo "$choice" | tr ',' ' ')"
     fi
     valid=1
     for c in $sel; do
         case "$c" in
-            1 | 2 | 3) ;;
+            1 | 2 | 3 | 4) ;;
             *) valid=0 ;;
         esac
     done
@@ -193,6 +194,18 @@ PYEOF
 
     elif [ "$c" = "3" ] && [ "$OBS" != true ]; then
         echo "  [skip] obsidian hook not installed"
+    fi
+done
+
+# --- 4) Hyprquickpaper ---
+for c in $sel; do
+    if [ "$c" = "4" ] && [ -d "$HOME/.config/quickshell/hyprquickpaper" ]; then
+        echo ""
+        echo "Removing Hyprquickpaper ..."
+        rm -rf "$HOME/.config/quickshell/hyprquickpaper"
+        echo "  Removed ~/.config/quickshell/hyprquickpaper/"
+    elif [ "$c" = "4" ] && [ ! -d "$HOME/.config/quickshell/hyprquickpaper" ]; then
+        echo "  [skip] hyprquickpaper not installed"
     fi
 done
 
